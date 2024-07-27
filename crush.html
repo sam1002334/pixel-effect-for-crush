@@ -1,0 +1,112 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Effect</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    background-color: black;
+}
+
+#my-canvas {
+    border: 1px solid rgb(189, 11, 153);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -15%);
+}
+</style>
+<body>
+    <canvas id="my-canvas"></canvas>
+    <input type="file" id="image-input" accept="image/*">
+    <script src="pixel.js"></script>
+    <script>
+        const canvas = document.getElementById('my-canvas');
+        const ctx = canvas.getContext('2d');
+        const imageInput = document.getElementById('image-input');
+
+        let brightnessArray = [];
+        let particlesArray = [];
+        let rgbArray = []; // RGB
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = 0;
+                this.brightness = 0;
+                this.velocity = Math.random() * 3 + 0.2;
+                this.radius = Math.random() * 1.5 + 1;
+            }
+
+            update() {
+                this.y += this.velocity;
+                if (this.y >= canvas.height) {
+                    this.y = 0;
+                    this.x = Math.random() * canvas.width;
+                }
+                this.brightness = brightnessArray[Math.floor(this.y - 1) * canvas.width + Math.floor(this.x)];
+            }
+
+            draw() {
+                ctx.beginPath();
+                // ctx.fillStyle = 'white';
+                ctx.fillStyle = rgbArray[Math.floor(this.y - 1) * canvas.width + Math.floor(this.x)];
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const imageData = event.target.result;
+                const img = new Image();
+                img.onload = () => {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    ctx.clearRect(0, 0, canvas.width, canvas.height); // deleting the image after its drawn and we have the data
+                    console.log(imgData.data); // rgb red green blue alpha 0-255
+
+                    for (let i = 0; i < imgData.data.length; i++) {
+                        const red = imgData.data[i * 4];
+                        const green = imgData.data[(i * 4) + 1];
+                        const blue = imgData.data[(i * 4) + 2];
+                        const brightness = (red + green + blue) / 3;
+                        brightnessArray.push(brightness);
+                        rgbArray.push(`rgb(${red}, ${green}, ${blue})`); // RGB
+                    }
+
+                    // generate 10,000 particles
+                    for (let i = 0; i < 10000; i++) {
+                        particlesArray.push(new Particle());
+                    }
+
+                    const animate = () => {
+                        ctx.globalAlpha = 0.05;
+                        ctx.fillStyle = 'black';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        particlesArray.forEach(particle => {
+                            particle.update();
+                            ctx.globalAlpha = particle.brightness * 0.001;
+                            particle.draw();
+                        });
+                        requestAnimationFrame(animate);
+                    };
+                    animate();
+                };
+                img.src = imageData;
+            };
+            reader.readAsDataURL(file);
+        });
+    </script>
+</body>
+</html>
